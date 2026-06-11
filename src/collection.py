@@ -6,7 +6,7 @@ Supports large file processing with pandas chunking.
 
 import pandas as pd
 from pathlib import Path
-from typing import Generator, Tuple, List, Dict, Any
+from typing import Generator, Tuple, List, Dict, Any, cast, Iterable
 
 import config
 from src.utils import setup_logger, validate_csv_exists
@@ -48,7 +48,8 @@ class DataCollector:
         
         try:
             self.logger.info(f"Loading CSV file: {self.csv_path}")
-            df = pd.read_csv(self.csv_path)
+            # pd.read_csv stubs are noisy for our pyright config; silence with a targeted ignore
+            df = pd.read_csv(self.csv_path)  # type: ignore[reportUnknownMemberType]
             
             self.logger.info(f"Successfully loaded {len(df)} rows from CSV")
             self.logger.info(f"Columns: {list(df.columns)}")
@@ -82,13 +83,16 @@ class DataCollector:
         try:
             self.logger.info(f"Loading CSV in chunks of {chunk_size} rows: {self.csv_path}")
             
-            chunk_reader = pd.read_csv(self.csv_path, chunksize=chunk_size)
+            # pd.read_csv(..., chunksize=...) typing is noisy; treat as iterable of DataFrame
+            chunk_reader = cast(Iterable[pd.DataFrame], pd.read_csv(self.csv_path, chunksize=chunk_size))  # type: ignore[reportUnknownMemberType]
             total_rows = 0
             
             for chunk_num, chunk in enumerate(chunk_reader, 1):
-                total_rows += len(chunk)
-                self.logger.info(f"Loaded chunk {chunk_num} ({len(chunk)} rows, total: {total_rows})")
-                yield chunk
+                # chunk_reader yields DataFrame chunks at runtime
+                chunk_df = chunk  # type: ignore[reportUnknownMemberType]
+                total_rows += int(len(chunk_df))
+                self.logger.info(f"Loaded chunk {chunk_num} ({len(chunk_df)} rows, total: {total_rows})")
+                yield chunk_df
             
             self.logger.info(f"Completed loading {total_rows} total rows in chunks")
             
@@ -134,12 +138,17 @@ class DataCollector:
         Returns:
             Dictionary with quality metrics
         """
+        # Use explicit casts and type-ignore comments for pandas stubs
+        null_counts = cast(Any, df.isnull().sum().to_dict())  # type: ignore[reportUnknownMemberType]
+        duplicate_rows = int(cast(Any, df.duplicated().sum()))  # type: ignore[reportUnknownMemberType]
+        memory_usage_mb = float(cast(Any, df.memory_usage(deep=True).sum())) / 1024**2  # type: ignore[reportUnknownMemberType]
+
         quality_report: Dict[str, Any] = {
-            "total_rows": len(df),
-            "total_columns": len(df.columns),
-            "null_counts": df.isnull().sum().to_dict(),
-            "duplicate_rows": df.duplicated().sum(),
-            "memory_usage_mb": df.memory_usage(deep=True).sum() / 1024**2
+            "total_rows": int(len(df)),
+            "total_columns": int(len(df.columns)),
+            "null_counts": dict(null_counts),
+            "duplicate_rows": duplicate_rows,
+            "memory_usage_mb": memory_usage_mb,
         }
         
         self.logger.info(f"Data Quality Report: {quality_report}")

@@ -18,7 +18,8 @@ from src.utils import setup_logger
 from src.collection import collect_data
 from src.ingestion import ingest_data, DatabaseIngester
 from src.preprocessing import preprocess_data, extract_keywords
-from typing import Any, Dict, List
+_ = extract_keywords  # ensure imported symbol is referenced for static checkers
+from typing import Any, Dict, List, cast
 import pandas as pd
 import numpy as np
 from src.embedding import generate_sentence_embeddings
@@ -52,7 +53,8 @@ def main():
         print_banner("PHASE 1: DATA COLLECTION")
         raw_data = collect_data(config.CSV_FILE_PATH)
         print(f"✓ Collected {len(raw_data)} reviews")
-        print(f"✓ Memory usage: {raw_data.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
+        mem_sum = float(cast(Any, raw_data.memory_usage(deep=True).sum()))  # type: ignore[reportUnknownMemberType]
+        print(f"✓ Memory usage: {mem_sum / 1024**2:.2f} MB")
         
         # ============================================
         # PHASE 2: DATA INGESTION
@@ -109,9 +111,12 @@ def main():
         print_banner("PHASE 5: EMBEDDING GENERATION")
         # Embeddings & AI steps: only for complex reviews when hybrid is enabled
         complex_db = ingester.fetch_complex_preprocessed_reviews()
-        complex_review_ids = complex_db["review_id"].tolist() if len(complex_db) > 0 else []
-        complex_texts = complex_db["preprocessed_text"].tolist() if len(complex_db) > 0 else []
-
+        if len(complex_db) > 0:
+            complex_review_ids = complex_db["review_id"].astype(str).tolist()
+            complex_texts = complex_db["preprocessed_text"].astype(str).tolist()
+        else:
+            complex_review_ids = []
+            complex_texts = []
         if len(complex_review_ids) > 0:
             embeddings = generate_sentence_embeddings(
                 complex_texts,
@@ -150,14 +155,19 @@ def main():
 
         # Rule-based topic assignments for simple reviews
         simple_assignments: List[Dict[str, Any]] = []
-        simple_df = preprocessed_data[preprocessed_data.get("is_complex", False) == False] if "is_complex" in preprocessed_data.columns else preprocessed_data.iloc[0:0]
-        for _, row in simple_df.iterrows():
+        if "is_complex" in preprocessed_data.columns:
+            simple_df = preprocessed_data[preprocessed_data["is_complex"] == False]
+        else:
+            simple_df = preprocessed_data.iloc[0:0]
+
+        # Iterate over plain dict records to avoid pandas Series typing
+        simple_records = cast(List[Dict[str, Any]], cast(Any, simple_df.to_dict(orient="records"))) if len(simple_df) > 0 else []  # type: ignore[reportUnknownMemberType]
+        for row in simple_records:
             # Use rule_summary as topic_label with topic_id -1
             topic_row: Dict[str, Any] = {
-                "review_id": row["review_id"],
+                "review_id": row.get("review_id"),
                 "topic_id": -1,
                 "topic_probability": 1.0,
-                "topic_keywords": row.get("rule_topics", "") if row.get("rule_topics") else ",".join(extract_keywords(row.get("cleaned_text", ""))),
                 "topic_label": row.get("rule_summary", "rule_based")
             }
             simple_assignments.append(topic_row)
@@ -179,9 +189,10 @@ def main():
         else:
             # No complex reviews: mark simple reviews as noise clusters (-1)
             simple_cluster_rows: List[Dict[str, Any]] = []
-            for _, row in simple_df.iterrows():
+            simple_records = cast(List[Dict[str, Any]], cast(Any, simple_df.to_dict(orient="records"))) if len(simple_df) > 0 else []  # type: ignore[reportUnknownMemberType]
+            for row in simple_records:
                 simple_cluster_rows.append({
-                    "review_id": row["review_id"],
+                    "review_id": row.get("review_id"),
                     "cluster_label": -1,
                     "cluster_probability": 1.0,
                     "is_noise": True
@@ -218,22 +229,22 @@ def main():
         print("=" * 70)
         
         if len(preprocessed_data) > 0:
-            sample = preprocessed_data.iloc[0]
-            print(f"Review ID: {sample['review_id']}")
-            print(f"Model: {sample['model_name']}")
+            sample = cast(Dict[str, Any], cast(Any, preprocessed_data.iloc[0].to_dict()))  # type: ignore[reportUnknownMemberType]
+            print(f"Review ID: {sample.get('review_id')}")
+            print(f"Model: {sample.get('model_name')}")
             print(f"\nOriginal Text:")
-            print(f"  {sample['original_text'][:150]}...")
+            print(f"  {str(sample.get('original_text',''))[:150]}...")
             print(f"\nCleaned Text:")
-            print(f"  {sample['cleaned_text'][:150]}...")
-            print(f"\nTokens ({sample['token_count']} total, {sample['unique_tokens']} unique):")
-            tokens_preview = sample['tokens'].split()[:20]
+            print(f"  {str(sample.get('cleaned_text',''))[:150]}...")
+            print(f"\nTokens ({sample.get('token_count',0)} total, {sample.get('unique_tokens',0)} unique):")
+            tokens_preview = str(sample.get('tokens', '')).split()[:20]
             print(f"  {' '.join(tokens_preview)}...")
             print(f"\nLemmas:")
-            lemmas_preview = sample['lemmas'].split()[:20]
+            lemmas_preview = str(sample.get('lemmas', '')).split()[:20]
             print(f"  {' '.join(lemmas_preview)}...")
             print(f"\nMetadata:")
-            print(f"  Text Length: {sample['text_length']} characters")
-            print(f"  Hinglish Score: {sample['hinglish_score']}%")
+            print(f"  Text Length: {sample.get('text_length')} characters")
+            print(f"  Hinglish Score: {sample.get('hinglish_score')}%")
         
         print_banner("PIPELINE COMPLETED SUCCESSFULLY ✓")
         

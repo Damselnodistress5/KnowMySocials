@@ -8,7 +8,7 @@ import io
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
-from typing import Any, cast
+from typing import Any, cast, List, Dict
 from sqlalchemy import (
     Column,
     Integer,
@@ -210,7 +210,8 @@ class DatabaseIngester:
             failed_count = 0
             
             with get_db_connection() as session:
-                for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting raw data"):
+                records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+                for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting raw data")):
                     try:
                         # Parse review date
                         review_date_raw: Any = row.get("Review_Date")
@@ -287,7 +288,8 @@ class DatabaseIngester:
             ingested_count = 0
 
             with get_db_connection() as session:
-                for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting preprocessed data"):
+                records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+                for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting preprocessed data")):
                     try:
                         review_id = row.get("review_id")
                         if not review_id:
@@ -356,7 +358,8 @@ class DatabaseIngester:
             ingested_count = 0
 
             with get_db_connection() as session:
-                for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting metadata"):
+                records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+                for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting metadata")):
                     try:
                         review_id = row.get("review_id")
                         if not review_id:
@@ -486,7 +489,8 @@ class DatabaseIngester:
         self.logger.info(f"Ingesting topic assignments for {len(df)} reviews...")
         ingested_count = 0
         with get_db_connection() as session:
-            for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting topics"):
+            records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+            for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting topics")):
                 try:
                     review_id = row.get("review_id")
                     if not review_id:
@@ -548,7 +552,8 @@ class DatabaseIngester:
         self.logger.info(f"Ingesting topic summary for {len(df)} topics...")
         ingested_count = 0
         with get_db_connection() as session:
-            for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting topic summary"):
+            records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+            for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting topic summary")):
                 try:
                     _tid = row.get("topic_id")
                     topic_id = int(_tid) if (_tid is not None and str(_tid).strip() != "") else None
@@ -589,7 +594,8 @@ class DatabaseIngester:
         self.logger.info(f"Ingesting cluster assignments for {len(df)} reviews...")
         ingested_count = 0
         with get_db_connection() as session:
-            for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting clusters"):
+            records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+            for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting clusters")):
                 try:
                     review_id = row.get("review_id")
                     if not review_id:

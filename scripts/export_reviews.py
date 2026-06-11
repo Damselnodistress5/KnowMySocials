@@ -1,7 +1,11 @@
 import pandas as pd
 from src.utils import get_db_engine
 from sqlalchemy import text
+import pandas as pd
+from src.utils import get_db_engine
+from sqlalchemy import text
 import config
+
 
 engine = get_db_engine()
 sql = f'''
@@ -20,6 +24,6 @@ if rows:
     df.to_csv(out, index=False)
     print('Wrote', out)
     print('\nFirst 10 rows:')
-    print(df.head(10).to_string(index=False))
+    print(df.head(10))
 else:
     print('No rows returned')

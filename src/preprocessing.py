@@ -7,7 +7,7 @@ Includes cleaning, tokenization, lemmatization, and domain-specific normalizatio
 # pyright: reportMissingTypeStubs=false
 import re
 import pandas as pd
-from typing import Any, List, Tuple, Dict, Set, Optional
+from typing import Any, List, Tuple, Dict, Set, Optional, cast
 from tqdm import tqdm
 import threading
 import concurrent.futures
@@ -523,12 +523,13 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
         # Thread-local storage so each worker thread gets its own TextPreprocessor
         thread_local = threading.local()
 
-        def _process_item(item: Tuple[Any, pd.Series]) -> Tuple[Any, Optional[Dict[str, Any]], Optional[Exception]]:
+        def _process_item(item: Tuple[Any, Dict[str, Any]]) -> Tuple[Any, Optional[Dict[str, Any]], Optional[Exception]]:
             """Worker that ensures a per-thread TextPreprocessor and runs hybrid_preprocess.
 
             Returns tuple (idx, result_dict or None, exception or None)
             """
             idx, row = item
+            # row is a plain dict from DataFrame row.to_dict()
             try:
                 preproc = getattr(thread_local, "preprocessor", None)
                 if preproc is None:
@@ -536,36 +537,51 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
                     thread_local.preprocessor = TextPreprocessor()
                     preproc = thread_local.preprocessor
 
-                review_text = row.get("Review_Text", "")
+                review_text = str(row.get("Review_Text", ""))
                 result = preproc.hybrid_preprocess(review_text)
 
                 # Add metadata
-                result["review_id"] = row.get("Review_ID", f"UNKNOWN_{idx}")
-                result["model_name"] = row.get("Model_Name", "Unknown")
+                result["review_id"] = str(row.get("Review_ID", f"UNKNOWN_{idx}"))
+                result["model_name"] = str(row.get("Model_Name", "Unknown"))
                 result["text_length"] = len(review_text)
                 result["language_detected"] = "mixed"
 
-                # Ensure tokens/lemmas are strings for storage
-                result["tokens"] = " ".join(result["tokens"]) if isinstance(result.get("tokens"), list) else result.get("tokens", "")
-                result["lemmas"] = " ".join(result["lemmas"]) if isinstance(result.get("lemmas"), list) else result.get("lemmas", "")
+                # Ensure tokens/lemmas are strings for storage (stringify each element)
+                tokens_val = result.get("tokens", "")
+                lemmas_val = result.get("lemmas", "")
+
+                if isinstance(tokens_val, list):
+                    tokens_list: List[str] = [str(x) for x in cast(List[Any], tokens_val)]
+                else:
+                    tokens_list = [str(tokens_val or "")]
+                result["tokens"] = " ".join(tokens_list)
+
+                if isinstance(lemmas_val, list):
+                    lemmas_list: List[str] = [str(x) for x in cast(List[Any], lemmas_val)]
+                else:
+                    lemmas_list = [str(lemmas_val or "")]
+                result["lemmas"] = " ".join(lemmas_list)
                 result["preprocessed_text"] = result.get("cleaned_text", "")
 
                 return (idx, result, None)
             except Exception as e:
                 return (idx, None, e)
 
+        # Convert DataFrame to a list of plain dicts to avoid pandas Series typing issues
+        records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
         preprocessed_data: List[Dict[str, Any]] = []
 
         # Decide whether to run in parallel
         from config import USE_PARALLEL_PROCESSING, MAX_WORKERS
 
-        if USE_PARALLEL_PROCESSING and len(df) > 1:
+        if USE_PARALLEL_PROCESSING and len(records) > 1:
             # Use ThreadPoolExecutor for I/O/CPU-mixed preprocessing; per-thread TextPreprocessor
-            max_workers = min(MAX_WORKERS, len(df))
+            max_workers = min(MAX_WORKERS, len(records))
             futures: List[concurrent.futures.Future[Any]] = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-                for idx, row in df.iterrows():
-                    futures.append(ex.submit(_process_item, (idx, row)))
+                for idx, row_dict in enumerate(records):
+                    # row_dict is already a plain dict
+                    futures.append(ex.submit(_process_item, (idx, row_dict)))
 
                 for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Preprocessing"):
                     try:
@@ -581,8 +597,8 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
 
         else:
             # Sequential fallback (safe, simpler for small datasets)
-            for idx, row in tqdm(df.iterrows(), total=len(df), desc="Preprocessing"):
-                idx, result, err = _process_item((idx, row))
+            for idx, row_dict in enumerate(tqdm(records, total=len(records), desc="Preprocessing")):
+                idx, result, err = _process_item((idx, row_dict))
                 if err:
                     logger.warning(f"Error preprocessing row {idx}: {err}")
                     continue
