@@ -35,8 +35,9 @@ def run_dry():
 
     # 3. Hybrid Routing Stats
     if "is_complex" in pre_df.columns:
-        simple_count = int((pre_df["is_complex"] == False).sum())
-        complex_count = int((pre_df["is_complex"] == True).sum())
+        mask = pre_df["is_complex"].astype(bool)
+        simple_count = int((~mask).sum())
+        complex_count = int(mask.sum())
     else:
         simple_count = 0
         complex_count = len(pre_df)
@@ -53,10 +54,10 @@ def run_dry():
     # ================== AI PATH (Only Complex Reviews) ==================
     # Prefer explicit checks over DataFrame.get to avoid stub overloads
     if "is_complex" in pre_df.columns:
-        mask_series = cast(pd.Series, pre_df["is_complex"])  # type: ignore[reportUnknownMemberType]
+        mask_series = cast(pd.Series, pre_df["is_complex"]).astype(bool)  # type: ignore[reportUnknownMemberType]
     else:
-        mask_series = cast(pd.Series, pd.Series([True] * len(pre_df)))  # type: ignore[reportUnknownMemberType]
-    complex_df = pre_df[mask_series == True]
+        mask_series = cast(pd.Series, pd.Series([True] * len(pre_df))).astype(bool)  # type: ignore[reportUnknownMemberType]
+    complex_df = pre_df[mask_series]
 
     if len(complex_df) > 0:
         print(f"⚡ Running Full AI Pipeline on {len(complex_df)} Complex Reviews...")
@@ -95,10 +96,10 @@ def run_dry():
     # ================== Simple Reviews ==================
     # Build simple mask similarly to the complex mask to avoid DataFrame.get overloads
     if "is_complex" in pre_df.columns:
-        mask_simple = cast(pd.Series, pre_df["is_complex"])  # type: ignore[reportUnknownMemberType]
+        mask_simple = cast(pd.Series, pre_df["is_complex"]).astype(bool)  # type: ignore[reportUnknownMemberType]
     else:
-        mask_simple = cast(pd.Series, pd.Series([False] * len(pre_df)))  # type: ignore[reportUnknownMemberType]
-    simple_df = pre_df[mask_simple == False]
+        mask_simple = cast(pd.Series, pd.Series([False] * len(pre_df))).astype(bool)  # type: ignore[reportUnknownMemberType]
+    simple_df = pre_df[~mask_simple]
     if len(simple_df) > 0:
         print(f"\n📌 Rule-based Results for {len(simple_df)} Simple Reviews:")
         cols = ["review_id", "rule_topics", "rule_tags", "rule_summary"]

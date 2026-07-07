@@ -67,18 +67,19 @@ def _build_topic_model(
 def discover_topics(
     review_ids: List[str],
     documents: List[str],
-    embeddings: np.ndarray[Any, Any],
+    embeddings: Any,
     min_topic_size: int = 10
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Discover topics using BERTopic and return assignments plus topic summary."""
-    if len(review_ids) != len(documents) or len(review_ids) != embeddings.shape[0]:
+    embeddings_array = np.asarray(embeddings)
+    if len(review_ids) != len(documents) or len(review_ids) != embeddings_array.shape[0]:
         raise ValueError("review_ids, documents and embeddings must be the same length")
 
     logger.info("Starting BERTopic topic discovery")
     topic_model = _build_topic_model(min_topic_size=min_topic_size, n_reviews=len(review_ids))
     topics, probabilities = cast(
         Tuple[List[int], np.ndarray[Any, Any] | None],
-        topic_model.fit_transform(documents, embeddings)  # type: ignore[reportUnknownFunctionType]
+        topic_model.fit_transform(documents, embeddings_array)  # type: ignore[reportUnknownFunctionType]
     )  # type: ignore[assignment]
 
     logger.info("BERTopic fit complete")

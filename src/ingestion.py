@@ -100,6 +100,22 @@ class ProcessedReview(Base):
     cluster_probability = Column(Float)  # type: ignore
     is_noise = Column(Boolean, default=False)
 
+    # Sentiment Analysis (VADER + embedding similarity)
+    # sentiment: {"label": "positive|negative|neutral", "score": 0.5, "vader_score": 0.8, "compound": 0.7}
+    sentiment = Column(JSONB)
+
+    # Aspect-based sentiment
+    # aspects: [{"aspect": "mileage", "sentiment": "positive", "score": 0.9}, ...]
+    aspects = Column(JSONB)
+
+    # Abstractive summary (generated via BART/T5)
+    summary = Column(Text)
+    summary_length = Column(Integer)
+
+    # Trend data (historical + forecasting)
+    # trends: {"sentiment_trend": "increasing|stable|decreasing", "forecast_next_5": [...], "confidence": 0.8}
+    trends = Column(JSONB)
+
     # Metadata
     processed_at = Column(DateTime)
     version = Column(String(32))
@@ -633,6 +649,107 @@ class DatabaseIngester:
 
         self.logger.info(f"Cluster ingestion completed: {ingested_count} records")
         return ingested_count
+
+    def ingest_sentiment(self, df: pd.DataFrame) -> int:
+        """Store sentiment analysis results for reviews.
+        
+        Args:
+            df: DataFrame with columns [review_id, sentiment, aspects]
+                sentiment: dict with {label, score, vader_score, compound}
+                aspects: list[dict] with {aspect, sentiment, score}
+        
+        Returns:
+            Number of records updated
+        """
+        self.logger.info(f"Ingesting sentiment data for {len(df)} reviews...")
+        updated_count = 0
+        with get_db_connection() as session:
+            records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+            for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting sentiment")):
+                try:
+                    review_id = row.get("review_id")
+                    if not review_id:
+                        continue
+
+                    existing = session.query(ProcessedReview).filter_by(review_id=review_id).first()
+                    if existing:
+                        er = cast(Any, existing)
+                        er.sentiment = row.get("sentiment")  # dict with label, score
+                        er.aspects = row.get("aspects")      # list of aspect dicts
+                        updated_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to ingest sentiment row {idx}: {e}")
+                    continue
+
+            session.commit()
+        self.logger.info(f"Sentiment ingestion completed: {updated_count} records")
+        return updated_count
+
+    def ingest_summaries(self, df: pd.DataFrame) -> int:
+        """Store abstractive summaries for reviews.
+        
+        Args:
+            df: DataFrame with columns [review_id, summary, summary_length]
+        
+        Returns:
+            Number of records updated
+        """
+        self.logger.info(f"Ingesting summaries for {len(df)} reviews...")
+        updated_count = 0
+        with get_db_connection() as session:
+            records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+            for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting summaries")):
+                try:
+                    review_id = row.get("review_id")
+                    if not review_id:
+                        continue
+
+                    existing = session.query(ProcessedReview).filter_by(review_id=review_id).first()
+                    if existing:
+                        er = cast(Any, existing)
+                        er.summary = row.get("summary")
+                        er.summary_length = int(row.get("summary_length", 0)) if row.get("summary_length") else None
+                        updated_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to ingest summary row {idx}: {e}")
+                    continue
+
+            session.commit()
+        self.logger.info(f"Summary ingestion completed: {updated_count} records")
+        return updated_count
+
+    def ingest_trends(self, df: pd.DataFrame) -> int:
+        """Store trend and forecast data for reviews.
+        
+        Args:
+            df: DataFrame with columns [review_id, trends]
+                trends: dict with {sentiment_trend, forecast_next_5, confidence}
+        
+        Returns:
+            Number of records updated
+        """
+        self.logger.info(f"Ingesting trend data for {len(df)} reviews...")
+        updated_count = 0
+        with get_db_connection() as session:
+            records = cast(List[Dict[str, Any]], cast(Any, df.to_dict(orient="records")))  # type: ignore[reportUnknownMemberType]
+            for idx, row in enumerate(tqdm(records, total=len(records), desc="Ingesting trends")):
+                try:
+                    review_id = row.get("review_id")
+                    if not review_id:
+                        continue
+
+                    existing = session.query(ProcessedReview).filter_by(review_id=review_id).first()
+                    if existing:
+                        er = cast(Any, existing)
+                        er.trends = row.get("trends")  # dict with trend data
+                        updated_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to ingest trend row {idx}: {e}")
+                    continue
+
+            session.commit()
+        self.logger.info(f"Trend ingestion completed: {updated_count} records")
+        return updated_count
 
     def get_record_count(self, table_name: str) -> int:
         """

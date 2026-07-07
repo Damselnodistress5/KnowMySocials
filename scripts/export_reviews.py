@@ -1,9 +1,6 @@
 import pandas as pd
 from src.utils import get_db_engine
 from sqlalchemy import text
-import pandas as pd
-from src.utils import get_db_engine
-from sqlalchemy import text
 import config
 
 

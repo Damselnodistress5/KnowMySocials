@@ -138,3 +138,104 @@ PROCESSED_DATA_TABLE = "processed_reviews"
 # Topic master and pipeline run tables
 TOPIC_MASTER_TABLE = "topic_master"
 PIPELINE_RUNS_TABLE = "pipeline_runs"
+
+# ============================================================================
+# SENTIMENT ANALYSIS & ASPECT EXTRACTION CONFIGURATION
+# ============================================================================
+
+# VADER model (built into nltk, no download needed)
+USE_VADER_SENTIMENT = True
+
+# Embedding-based sentiment similarity threshold
+# Reviews above this similarity to negative/positive embeddings are classified
+SENTIMENT_SIMILARITY_THRESHOLD = 0.3
+
+# Aspect keywords for fast-path aspect extraction (rule-based)
+ASPECT_KEYWORDS = {
+    "mileage": ["mileage", "fuel", "kmpl", "efficiency", "consumption", "economy"],
+    "engine": ["engine", "pickup", "acceleration", "torque", "power", "rev", "rpm"],
+    "comfort": ["comfort", "seat", "ride", "smooth", "suspension", "handling"],
+    "design": ["design", "look", "color", "aesthetic", "styling", "finish"],
+    "build_quality": ["build", "quality", "durability", "solid", "finish", "paint"],
+    "heat": ["heat", "temperature", "hot", "cooling", "overheat"],
+    "noise": ["noise", "sound", "vibration", "rattle", "squeak"],
+    "service": ["service", "maintenance", "spare", "parts", "repair", "warranty"],
+    "braking": ["brake", "braking", "stopping", "abs"],
+    "storage": ["storage", "compartment", "boot", "trunk", "space"],
+}
+
+# ============================================================================
+# SUMMARIZATION CONFIGURATION
+# ============================================================================
+
+# Summarization model (BART or T5 via transformers)
+SUMMARIZATION_MODEL = "facebook/bart-large-cnn"  # or "t5-base" for T5
+
+# Max length for generated summaries (tokens)
+SUMMARY_MAX_LENGTH = 50
+SUMMARY_MIN_LENGTH = 10
+
+# Batch size for summarization (process multiple reviews at once for efficiency)
+SUMMARIZATION_BATCH_SIZE = 8
+
+# Zero-shot classification labels for aspect-level summarization
+ZERO_SHOT_LABELS = [
+    "mileage and fuel efficiency",
+    "engine performance and pickup",
+    "comfort and ride quality",
+    "design and aesthetics",
+    "build quality and durability",
+    "heat and temperature management",
+    "noise and vibration",
+    "maintenance and service",
+    "braking and safety",
+    "storage and practicality"
+]
+
+# ============================================================================
+# TREND PREDICTION CONFIGURATION
+# ============================================================================
+
+# Use Prophet for historical trend analysis (requires statsmodels + pystan/cmdstanpy)
+USE_PROPHET_TRENDS = True
+
+# Optional: use LSTM for future prediction (requires tensorflow/keras)
+USE_LSTM_PREDICTION = False
+
+# Number of future periods to forecast (in terms of review batches or time units)
+FORECAST_PERIODS = 12
+
+# Prophet seasonality settings
+PROPHET_SEASONALITY_MODE = "additive"  # or "multiplicative"
+PROPHET_YEARLY_SEASONALITY = True
+PROPHET_WEEKLY_SEASONALITY = False
+PROPHET_DAILY_SEASONALITY = False
+
+# Trend analysis window: analyze trends within the last N reviews per model
+TREND_WINDOW_SIZE = 100
+
+# ============================================================================
+# CACHING & OPTIMIZATION
+# ============================================================================
+
+# Cache embeddings to avoid redundant computation
+CACHE_EMBEDDINGS = True
+
+# Cache summarization results
+CACHE_SUMMARIES = True
+
+# Max cache size (number of items)
+MAX_CACHE_SIZE = 5000
+
+# ============================================================================
+# EXPORT & REPORTING
+# ============================================================================
+
+# Output CSV filename for final processed reviews
+EXPORT_CSV_FILENAME = "reviews_final_structured.csv"
+
+# Include all sentiment/aspect/summary details in export
+EXPORT_DETAILED_SENTIMENT = True
+
+# Include trend predictions in export
+EXPORT_TREND_PREDICTIONS = True

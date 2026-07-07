@@ -144,3 +144,34 @@ def validate_csv_exists(filepath: Path) -> bool:
     
     logger.info(f"CSV file validated: {filepath}")
     return True
+
+
+def serialize_for_jsonb(obj: any) -> any:  # type: ignore[name-defined]
+    """
+    Convert Python objects to JSON-serializable format for JSONB storage.
+    Handles numpy arrays, pandas types, etc.
+    
+    Args:
+        obj: Object to serialize
+        
+    Returns:
+        JSON-serializable object
+    """
+    import numpy as np  # type: ignore[import-not-found]
+    
+    if isinstance(obj, np.ndarray):  # type: ignore[arg-type]
+        return obj.tolist()
+    elif isinstance(obj, (int, np.integer)):  # type: ignore[arg-type]
+        return int(obj)  # type: ignore[arg-type]
+    elif isinstance(obj, (float, np.floating)):  # type: ignore[arg-type]
+        return float(obj)  # type: ignore[arg-type]
+    elif isinstance(obj, dict):
+        return {k: serialize_for_jsonb(v) for k, v in obj.items()}  # type: ignore[return-value]
+    elif isinstance(obj, (list, tuple)):
+        return [serialize_for_jsonb(item) for item in obj]  # type: ignore[return-value]
+    elif obj is None:
+        return None
+    else:
+        # Return as-is if already JSON-serializable
+        return obj  # type: ignore[return-value]
+

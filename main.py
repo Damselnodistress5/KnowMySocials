@@ -12,14 +12,13 @@ from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
+from typing import Any, Dict, List, cast
 
 import config
 from src.utils import setup_logger
 from src.collection import collect_data
 from src.ingestion import ingest_data, DatabaseIngester
 from src.preprocessing import preprocess_data, extract_keywords
-_ = extract_keywords  # ensure imported symbol is referenced for static checkers
-from typing import Any, Dict, List, cast
 import pandas as pd
 import numpy as np
 from src.embedding import generate_sentence_embeddings
@@ -61,7 +60,7 @@ def main():
         # ============================================
         print_banner("PHASE 2: DATA INGESTION - RAW DATA")
         ingest_data(raw_data)
-        print(f"✓ Ingested raw reviews into PostgreSQL")
+        print("✓ Ingested raw reviews into PostgreSQL")
         
         ingester = DatabaseIngester()
         raw_count = ingester.get_record_count(config.RAW_DATA_TABLE)
@@ -74,12 +73,16 @@ def main():
         preprocessed_data = preprocess_data(raw_data)
         print(f"✓ Preprocessed {len(preprocessed_data)} reviews")
 
+        # reference the imported symbol to satisfy some static analyzers
+        _ = extract_keywords  # ensure imported symbol is referenced for static checkers
+
         # Count simple vs complex (hybrid) reviews
         simple_count = 0
         complex_count = 0
         if "is_complex" in preprocessed_data.columns:
-            simple_count = int((preprocessed_data["is_complex"] == False).sum())
-            complex_count = int((preprocessed_data["is_complex"] == True).sum())
+            mask = preprocessed_data["is_complex"].astype(bool)
+            simple_count = int((~mask).sum())
+            complex_count = int(mask.sum())
         else:
             # If hybrid not in place, assume all complex
             complex_count = len(preprocessed_data)
@@ -156,7 +159,8 @@ def main():
         # Rule-based topic assignments for simple reviews
         simple_assignments: List[Dict[str, Any]] = []
         if "is_complex" in preprocessed_data.columns:
-            simple_df = preprocessed_data[preprocessed_data["is_complex"] == False]
+            mask_simple = preprocessed_data["is_complex"].astype(bool)
+            simple_df = preprocessed_data[~mask_simple]
         else:
             simple_df = preprocessed_data.iloc[0:0]
 
@@ -232,17 +236,17 @@ def main():
             sample = cast(Dict[str, Any], cast(Any, preprocessed_data.iloc[0].to_dict()))  # type: ignore[reportUnknownMemberType]
             print(f"Review ID: {sample.get('review_id')}")
             print(f"Model: {sample.get('model_name')}")
-            print(f"\nOriginal Text:")
+            print("\nOriginal Text:")
             print(f"  {str(sample.get('original_text',''))[:150]}...")
-            print(f"\nCleaned Text:")
+            print("\nCleaned Text:")
             print(f"  {str(sample.get('cleaned_text',''))[:150]}...")
             print(f"\nTokens ({sample.get('token_count',0)} total, {sample.get('unique_tokens',0)} unique):")
             tokens_preview = str(sample.get('tokens', '')).split()[:20]
             print(f"  {' '.join(tokens_preview)}...")
-            print(f"\nLemmas:")
+            print("\nLemmas:")
             lemmas_preview = str(sample.get('lemmas', '')).split()[:20]
             print(f"  {' '.join(lemmas_preview)}...")
-            print(f"\nMetadata:")
+            print("\nMetadata:")
             print(f"  Text Length: {sample.get('text_length')} characters")
             print(f"  Hinglish Score: {sample.get('hinglish_score')}%")
         

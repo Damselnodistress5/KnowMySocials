@@ -37,8 +37,8 @@ except ImportError:
     word_tokenize = None
     nltk_available = False
 
-import config
-from src.utils import setup_logger
+import config  # noqa: E402
+from src.utils import setup_logger  # noqa: E402
 
 
 logger = setup_logger(__name__)
@@ -150,6 +150,9 @@ class TextPreprocessor:
     def __init__(self):
         """Initialize preprocessor with spaCy and NLTK models."""
         self.logger = setup_logger(__name__)
+        # typed attributes
+        self.nlp: Optional[Any] = None
+        self.stopwords: Set[str] = set()
         
         # Load spaCy model
         self._load_spacy_model()
@@ -217,6 +220,18 @@ class TextPreprocessor:
         
         # Add custom automotive domain stopwords
         stopwords_set.update(config.AUTOMOTIVE_STOPWORDS)
+
+        # Add simple Hindi/Hinglish stopwords (romanized and Devanagari variants)
+        hindi_stopwords = {
+            # common function words / particles
+            'hai', 'hain', 'tha', 'thi', 'the', 'hai', 'ho', 'hota', 'hoti',
+            'hai.', 'mein', 'mein.', 'mein,', 'ke', 'ki', 'ka', 'ke.', 'ko', 'se',
+            'nahi', 'nahin', 'nahi.', 'nahi,', 'bahut', 'bahut.', 'bahut,', 'bahut',
+            'aur', 'par', 'to', 'tha', 'thi', 'hota', 'raha', 'rahi', 'rahe',
+            # Devanagari script common stopwords
+            'है', 'हैं', 'था', 'थी', 'थे', 'में', 'नहीं', 'बहुत', 'और', 'पर', 'को', 'का', 'की'
+        }
+        stopwords_set.update(hindi_stopwords)
         
         self.logger.info(f"Loaded {len(stopwords_set)} total stopwords")
         return stopwords_set
@@ -501,6 +516,48 @@ class TextPreprocessor:
         score = int((hinglish_count / len(words)) * 100)
         return min(score, 100)  # Cap at 100
 
+    def _detect_language(self, text: str, hinglish_score: Optional[int] = None) -> str:
+        """
+        Lightweight language detection heuristic.
+
+        Returns: 'hi' for Hindi/Hinglish, 'en' for English, or 'mixed'
+        """
+        if not text:
+            return "mixed"
+
+        hinglish_score = hinglish_score if hinglish_score is not None else self._calculate_hinglish_score(text)
+
+        # Count Devanagari characters
+        devanagari_chars = len(re.findall(r'[\u0900-\u097F]', text))
+        total_chars = len(text)
+        devanagari_ratio = (devanagari_chars / total_chars) if total_chars > 0 else 0.0
+
+        # Count Hindi stopwords occurrences
+        hindi_count = 0
+        for sw in [
+            'hai','hain','nahi','nahin','mein','ka','ki','ke','ko','bahut','aur','par','है','नहीं','में'
+        ]:
+            hindi_count += len(re.findall(r'\b' + re.escape(sw) + r'\b', text, flags=re.IGNORECASE))
+
+        if devanagari_ratio > 0.02 or hinglish_score >= 25 or hindi_count >= 2:
+            # Mostly Hindi/Hinglish
+            return 'hi'
+
+        # If some Hindi terms but not dominant, call it mixed
+        if 0 < devanagari_ratio <= 0.02 or 5 <= hinglish_score < 25 or 1 <= hindi_count < 2:
+            return 'mixed'
+
+        return 'en'
+
+    def detect_language(self, text: str, hinglish_score: Optional[int] = None) -> str:
+        """
+        Public wrapper for language detection. Kept separate to avoid accessing
+        a protected member from other modules (Pylance warnings).
+
+        Returns: 'hi' | 'en' | 'mixed'
+        """
+        return self._detect_language(text, hinglish_score)
+
 
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -544,7 +601,12 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
                 result["review_id"] = str(row.get("Review_ID", f"UNKNOWN_{idx}"))
                 result["model_name"] = str(row.get("Model_Name", "Unknown"))
                 result["text_length"] = len(review_text)
-                result["language_detected"] = "mixed"
+                # Determine language heuristically (en / hi / mixed)
+                try:
+                    hinglish_score = result.get("hinglish_score", None)
+                    result["language_detected"] = preproc.detect_language(review_text, hinglish_score)
+                except Exception:
+                    result["language_detected"] = "mixed"
 
                 # Ensure tokens/lemmas are strings for storage (stringify each element)
                 tokens_val = result.get("tokens", "")

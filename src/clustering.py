@@ -16,17 +16,18 @@ logger = setup_logger(__name__)
 
 def perform_hdbscan_clustering(
     review_ids: List[str],
-    embeddings: np.ndarray[Any, Any],
+    embeddings: Any,
     min_cluster_size: int = 10,
     min_samples: int | None = None,
     metric: str = "euclidean"
 ) -> pd.DataFrame:
     """Run HDBSCAN clustering and assign cluster labels for each review."""
-    if len(review_ids) != embeddings.shape[0]:
+    embeddings_array = np.asarray(embeddings)
+    if len(review_ids) != embeddings_array.shape[0]:
         raise ValueError("review_ids and embeddings must have the same length")
 
     logger.info("Running HDBSCAN clustering on review embeddings")
-    embeddings = np.asarray(embeddings)
+    embeddings = embeddings_array
     n_samples = embeddings.shape[0]
 
     safe_min_cluster_size = min(min_cluster_size, max(2, n_samples // 2)) if n_samples > 2 else max(2, n_samples)
