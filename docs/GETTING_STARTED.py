@@ -40,7 +40,7 @@ Before starting, ensure you have:
 """
 Open Terminal and navigate to project:
 
-$ cd /Users/sepia/KnowMySocials
+$ cd KnowMySocials
 
 Create Python virtual environment:
 
@@ -199,7 +199,7 @@ knowmysocials_db=# \\q
 """
 1. Open VS Code
 2. Click File → Open Folder
-3. Navigate to /Users/sepia/KnowMySocials
+3. Navigate to KnowMySocials
 4. Click Open
 
 Configure Python Interpreter:
@@ -336,7 +336,7 @@ python --version
 which python
 
 # Check disk usage
-du -sh /Users/sepia/KnowMySocials
+du -sh KnowMySocials
 
 # View file sizes
 ls -lh data/
@@ -348,7 +348,7 @@ ls -lh logs/
 # ==============================================================================
 
 """
-/Users/sepia/KnowMySocials/
+KnowMySocials/
 │
 ├── data/
 │   └── honda_reviews.csv              [5500+ review records]

@@ -56,3 +56,11 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated outputs (recreated by the API / scripts)
+backend/results/
+results/
+data/graphs/
+*.tmp
+.cache/
+models_cache/

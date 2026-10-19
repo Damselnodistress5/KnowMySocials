@@ -67,7 +67,7 @@
 ## 🗂️ Complete Project Structure
 
 ```
-/Users/sepia/KnowMySocials/
+KnowMySocials/
 │
 ├── 📄 Documentation (Read These!)
 │   ├── INDEX.md ...................... This file

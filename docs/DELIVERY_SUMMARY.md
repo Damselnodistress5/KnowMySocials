@@ -2,7 +2,7 @@
 
 **Delivery Date:** June 2, 2026  
 **Status:** ✅ Complete and Ready to Run  
-**Project Location:** `/Users/sepia/KnowMySocials`
+**Project Location:** `KnowMySocials`
 
 ---
 
@@ -89,7 +89,7 @@ knowmysocials/
 
 **How to set up in VS Code:**
 ```
-1. File → Open Folder → Select /Users/sepia/KnowMySocials
+1. File → Open Folder → Select KnowMySocials
 2. Extensions → Search "Python" → Install by Microsoft
 3. Extensions → Search "Pylance" → Install by Microsoft
 4. Cmd+Shift+P → "Python: Select Interpreter" → Choose ./venv/bin/python
@@ -235,7 +235,7 @@ python -c "import pandas, numpy, sqlalchemy, psycopg2, spacy, nltk; print('✓ A
 
 ### Step 1: Setup Environment (2 minutes)
 ```bash
-cd /Users/sepia/KnowMySocials
+cd KnowMySocials
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -473,7 +473,7 @@ The modular architecture makes it easy to add:
 ## 🎬 GET STARTED NOW
 
 ```bash
-cd /Users/sepia/KnowMySocials
+cd KnowMySocials
 source venv/bin/activate
 python main.py
 ```

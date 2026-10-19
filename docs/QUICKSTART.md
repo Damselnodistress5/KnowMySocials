@@ -5,7 +5,7 @@
 ## 🎯 In 30 Seconds
 
 ```bash
-cd /Users/sepia/KnowMySocials
+cd KnowMySocials
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -28,7 +28,7 @@ python main.py
 
 ### 1. Create Virtual Environment
 ```bash
-cd /Users/sepia/KnowMySocials
+cd KnowMySocials
 python3 -m venv venv
 source venv/bin/activate  # (venv) should appear in prompt
 ```
@@ -147,7 +147,7 @@ psql -U postgres -d knowmysocials_db -c "
 
 1. **Open project in VS Code**
    ```bash
-   code /Users/sepia/KnowMySocials
+   code KnowMySocials
    ```
 
 2. **Install extensions**
@@ -290,7 +290,7 @@ For issues or questions:
 
 **Ready to start? Run this command:**
 ```bash
-cd /Users/sepia/KnowMySocials && source venv/bin/activate && python main.py
+cd KnowMySocials && source venv/bin/activate && python main.py
 ```
 
 Good luck! 🎉
